@@ -1,3 +1,6 @@
+#include <iostream>
+#include <fstream>
+
 #include <grpc/grpc.h>
 #include <grpcpp/channel.h>
 #include <grpcpp/client_context.h>
@@ -36,6 +39,11 @@ class EchoClient {
           }
 
           std::cout << "Message from server: " << recvMessage.message() << std::endl;
+
+          std::ofstream outputFile;
+          outputFile.open("message.bin", std::ios::out | std::ios::binary);
+          recvMessage.SerializeToOstream(&outputFile);
+          outputFile.close();
       }
   private:
       std::unique_ptr<Echo::Stub> stub_;
