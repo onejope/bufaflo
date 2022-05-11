@@ -20,6 +20,22 @@ public:
 		map<string, string> vars;
 		map<string, const MethodDescriptor*> service_methods;
 
+		// Set defaults
+		for (int i = 0; i < file->service_count(); i++) {
+			string service_name = file->service(i)->full_name();
+			vars[service_name + "_impl_header"] = file->service(i)->name() + "_impl.h";
+			vars[service_name + "_impl_classname"] = file->service(i)->name() + "Impl";
+		}
+
+		// Parse parameters
+		vector<pair<string, string>> params;
+		compiler::ParseGeneratorParameter(parameter, &params);
+
+		// Handle parameters
+		for (const auto param : params) {
+			vars[param.first] = param.second;
+		}
+
 		string base_filename(file->name().substr(0, file->name().size() - 6));
 		vars["base_filename"] = base_filename;
 		vars["message_header_ext"] = ".pb.h";
@@ -33,6 +49,10 @@ public:
 		// Includes
 		printer.Print(vars, "#include \"$base_filename$$message_header_ext$\"\n");
 		printer.Print(vars, "#include \"$base_filename$.grpc$message_header_ext$\"\n");
+		for (int i = 0; i < file->service_count(); i++) {
+			string impl_include = "#include \"$" + file->service(i)->full_name() + "_impl_header$\" // Replace with Impl header\n";
+			printer.Print(vars, impl_include.c_str());
+		}
 		printer.Print(vars, "#include <iostream>\n");
 		printer.Print(vars, "#include <fstream>\n");
 		printer.Print(vars, "#include <grpcpp/server_context.h>\n");
@@ -83,10 +103,8 @@ public:
 			vars["service_method"] = service_method.first;
 			printer.Print(vars, "if (service_method == \"$service_method$\") {\n");
 			printer.Indent();
-			string service(service_method.second->service()->full_name());
-			replaceAll(service, ".", "::");
-			vars["service"] = service;
-			printer.Print(vars, "$service$ service; // Replace with Implementation classname\n");
+			string instantiate_service("$" + service_method.second->service()->full_name() + "_impl_classname$ service; // Replace with Impl classname\n");
+			printer.Print(vars, instantiate_service.c_str());
 
 			// Instantiate variables for method parameters
 			string input_type(service_method.second->input_type()->full_name());
@@ -97,6 +115,9 @@ public:
 			vars["output_type"] = output_type;
 			printer.Print(vars, "$input_type$ input;\n");
 			printer.Print(vars, "$output_type$ output;\n");
+
+			// Parse inFile
+			printer.Print(vars, "input.ParseFromIstream(&inFile);\n");
 
 			// Call service method
 			vars["method"] = service_method.second->name();

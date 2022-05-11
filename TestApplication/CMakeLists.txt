@@ -21,8 +21,9 @@ add_custom_command(
         -I "${echo_proto_path}"
         --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
         --plugin=protoc-gen-bufaflo="${_BUFAFLO_PLUGIN_EXECUTABLE}"
+        --bufaflo_opt=echo.Echo_impl_header=echo_impl.h
         "${echo_proto}"
-      DEPENDS "${echo_proto}")
+      DEPENDS "${echo_proto}" "${_BUFAFLO_PLUGIN_EXECUTABLE}")
 
 # Include generated *.pb.h files
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
@@ -61,6 +62,7 @@ target_link_libraries(echo_afl
 
 # Build the generated bufaflo code
 add_executable (echo_bufaflo ${echo_bufaflo_srcs} echo_impl.h echo_impl.cc)
+target_include_directories (echo_bufaflo PRIVATE ${echo_proto_path})
 target_link_libraries(echo_bufaflo
   echo_grpc_proto
   ${_REFLECTION}
